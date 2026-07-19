@@ -1,0 +1,112 @@
+@startuml
+!pragma layout smetana
+title Assistente multiagente - arquitetura de containers e integrações
+
+left to right direction
+scale max 2400 width
+skinparam dpi 160
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundCorner 12
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam ArrowColor #455A64
+skinparam ArrowThickness 1.2
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BorderColor #546E7A
+  FontColor #263238
+}
+skinparam component {
+  BackgroundColor #E3F2FD
+  BorderColor #1976D2
+  FontColor #0D47A1
+}
+skinparam database {
+  BackgroundColor #FFF3E0
+  BorderColor #EF6C00
+  FontColor #BF360C
+}
+skinparam cloud {
+  BackgroundColor #F3E5F5
+  BorderColor #7B1FA2
+  FontColor #4A148C
+}
+skinparam actor {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+  FontColor #1B5E20
+}
+
+actor "Pessoa usuária" as user
+rectangle "Navegador" as browser #E8F5E9
+
+package "Ambiente Docker Compose" as docker #ECEFF1 {
+  component "Interface web\nAngular 22 + Nginx\n\nChat, Markdown, autorização\ne proxy reverso de /api" as ui
+
+  package "Backend Python 3.12" as backend #F5F9FF {
+    component "API Flask\nPOST /api/v1/agent/stream\n\nValidação, SSE e retomada\nde interrupções" as api
+    component "Agente raiz\nLangGraph\n\nRoteamento, contexto e\ncomposição da resposta" as root
+
+    package "Agentes especializados (LangGraph)" as specialists #FFFFFF {
+      component "Pesquisa web" as search
+      component "Clima" as weather
+      component "PostgreSQL" as sql
+      component "Busca vetorial" as vector
+    }
+
+    component "Ingestão vetorial (CLI)\napp.ingest\n\nCSV -> documentos -> embeddings" as ingest #E8EAF6
+    component "Checkpointer LangGraph\nthreads raiz e especialistas" as checkpoint #E8EAF6
+  }
+
+  database "PostgreSQL 16\n\ncustomers, products, orders\n+ checkpoints das conversas" as postgres
+  database "Qdrant\n\ncoleção de documentos\ne vetores" as qdrant
+}
+
+cloud "Provedor de modelos\nOllama no host ou endpoint compatível\n\nchat + embeddings" as models
+cloud "Tavily API\nPesquisa web" as tavily
+cloud "OpenWeather APIs\nGeocodificação + previsão" as openweather
+file "Dataset CSV\npython_faq_dataset.csv" as dataset
+
+user --> browser : conversa e confirma\nalterações SQL
+browser --> ui : HTTP :4200
+ui --> api : proxy /api\nJSON + streaming SSE
+api --> root : message ou Command(resume)\nthread_id
+
+root --> search : delega pesquisa
+root --> weather : delega clima
+root --> sql : delega consulta/alteração
+root --> vector : delega busca semântica
+
+root --> models : chat
+specialists --> models : chat dos agentes
+
+search --> tavily : HTTPS
+weather --> openweather : HTTPS
+sql --> postgres : SQL parametrizado\nSELECT / escrita autorizada
+vector --> qdrant : similaridade vetorial
+vector --> models : embeddings
+
+root --> checkpoint : persiste estado
+specialists --> checkpoint : threads especializadas
+checkpoint --> postgres : Psycopg / PostgresSaver
+
+dataset --> ingest : leitura sob demanda
+ingest --> models : gera embeddings
+ingest --> qdrant : recria e popula coleção
+
+note bottom of sql
+  INSERT, UPDATE e DELETE geram uma interrupção.
+  A API transmite o pedido de autorização por SSE;
+  a UI retoma a mesma thread com resume.
+end note
+
+legend bottom left
+  |= Relação |= Significado |
+  | -> | chamada síncrona / fluxo de dados |
+  | SSE | resposta incremental e eventos de controle |
+endlegend
+
+@enduml

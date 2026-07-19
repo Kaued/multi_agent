@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+.env
+.venv
+.ruff_cache
+.uv-cache
+__pycache__
+*.py[cod]
+pgdata
+vector_db
+tests
+ui

@@ -1,0 +1,183 @@
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand" aria-label="Assistente AI">
+      <span class="brand-mark" aria-hidden="true">
+        <span></span>
+      </span>
+      <div>
+        <strong>Assistente AI</strong>
+        <span class="status">
+          <i [class.active]="isStreaming()"></i>
+          {{ connectionLabel() }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main #conversation class="conversation" aria-live="polite">
+    @if (messages().length === 0) {
+      <section class="empty-state">
+        <div class="empty-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.5a8.5 8.5 0 0 0-7.23 12.97L4 20l3.53-.77A8.5 8.5 0 1 0 12 3.5Z" />
+            <path d="M8.5 11.75h.01M12 11.75h.01M15.5 11.75h.01" />
+          </svg>
+        </div>
+        <h1>Como posso ajudar?</h1>
+        <p>Envie uma mensagem para começar uma conversa.</p>
+      </section>
+    } @else {
+      <section class="message-list">
+        @for (message of messages(); track trackMessage($index, message)) {
+          <article class="message" [class.user-message]="message.role === 'user'">
+            <div
+              class="message-avatar"
+              [class.user-avatar]="message.role === 'user'"
+              aria-hidden="true"
+            >
+              @if (message.role === 'assistant') {
+                <span></span>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20c.8-3.4 3.4-5.5 7.5-5.5s6.7 2.1 7.5 5.5"
+                  />
+                </svg>
+              }
+            </div>
+
+            <div class="message-body" [class.error-message]="message.state === 'error'">
+              @if (message.role === 'assistant') {
+                @if (!message.content && message.state === 'streaming') {
+                  <div class="thinking" aria-label="O assistente está pensando">
+                    <span></span><span></span><span></span>
+                  </div>
+                } @else {
+                  <div
+                    class="markdown-content"
+                    [class.streaming]="message.state === 'streaming'"
+                    [innerHTML]="renderMarkdown(message.content)"
+                  ></div>
+                }
+              } @else {
+                <p>{{ message.content }}</p>
+              }
+
+              @if (message.interrupt) {
+                <div class="confirmation-card">
+                  <div class="confirmation-title">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 8v4.5M12 16h.01" />
+                      <path
+                        d="M10.4 4.4 3.2 17a1.8 1.8 0 0 0 1.56 2.7h14.48A1.8 1.8 0 0 0 20.8 17L13.6 4.4a1.84 1.84 0 0 0-3.2 0Z"
+                      />
+                    </svg>
+                    Confirmação necessária
+                  </div>
+                  @for (group of message.interrupt.groups; track group.id ?? $index) {
+                    @if (group.agent) {
+                      <p class="confirmation-agent">Agente: {{ group.agent }}</p>
+                    }
+                    @for (request of group.requests; track request.id ?? $index) {
+                      <p class="confirmation-question">{{ request.question }}</p>
+                      @if (request.operation) {
+                        <dl class="operation-details">
+                          <div>
+                            <dt>Operação</dt>
+                            <dd>
+                              <span class="operation-badge">{{ request.operation }}</span>
+                            </dd>
+                          </div>
+                          @if (request.query) {
+                            <div>
+                              <dt>Query</dt>
+                              <dd>
+                                <code>{{ request.query }}</code>
+                              </dd>
+                            </div>
+                          }
+                          @if (request.params !== undefined) {
+                            <div>
+                              <dt>Parâmetros</dt>
+                              <dd>
+                                <pre>{{ formatParams(request.params) }}</pre>
+                              </dd>
+                            </div>
+                          }
+                        </dl>
+                      }
+                      @if (request.instructions) {
+                        <p class="confirmation-instructions">{{ request.instructions }}</p>
+                      }
+                    }
+                  }
+                  @if (message.state === 'interrupted') {
+                    <div class="confirmation-actions">
+                      <button
+                        type="button"
+                        class="confirm-button"
+                        [disabled]="isStreaming() || message.interruptResponding"
+                        (click)="respondToInterrupt(message.id, true)"
+                      >
+                        Autorizar
+                      </button>
+                      <button
+                        type="button"
+                        class="cancel-button"
+                        [disabled]="isStreaming() || message.interruptResponding"
+                        (click)="respondToInterrupt(message.id, false)"
+                      >
+                        Não autorizar
+                      </button>
+                    </div>
+                  } @else {
+                    <p class="confirmation-resolved">Solicitação respondida</p>
+                  }
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </section>
+    }
+  </main>
+
+  <footer class="composer-area">
+    <div class="composer" [class.disabled]="isStreaming()">
+      <textarea
+        #messageInput
+        rows="1"
+        aria-label="Mensagem"
+        [placeholder]="pendingInterrupt() ? 'Responda à solicitação...' : 'Envie uma mensagem...'"
+        [ngModel]="draft()"
+        [disabled]="isStreaming()"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"
+      ></textarea>
+
+      @if (isStreaming()) {
+        <button
+          class="send-button stop-button"
+          type="button"
+          aria-label="Parar resposta"
+          (click)="stopStreaming()"
+        >
+          <span></span>
+        </button>
+      } @else {
+        <button
+          class="send-button"
+          type="button"
+          aria-label="Enviar mensagem"
+          [disabled]="!draft().trim()"
+          (click)="sendMessage()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m6 12 6-6 6 6M12 6v12" />
+          </svg>
+        </button>
+      }
+    </div>
+    <p class="hint">Enter para enviar · Shift + Enter para quebrar linha</p>
+  </footer>
+</div>
