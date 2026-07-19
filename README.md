@@ -252,13 +252,28 @@ A ingestão lê o CSV configurado em `DATA_SET_PATH`, recria a coleção indicad
 por `COLLECTION_NAME` e insere os documentos. Execute-a depois que Qdrant e
 Ollama estiverem disponíveis:
 
+Use barras normais (`/`) em `DATA_SET_PATH`, inclusive quando o `.env` for
+editado no Windows:
+
+```env
+DATA_SET_PATH=app/data/python_faq_dataset.csv
+```
+
+O mesmo arquivo de ambiente é carregado pelo container Linux. Um caminho com
+barras invertidas, como `app\data\python_faq_dataset.csv`, causa
+`FileNotFoundError` dentro do container.
+
+Em execução local:
+
 ```shell
 uv run python -m app.ingest
 ```
 
-Com a aplicação em containers:
+Com a aplicação em containers, recrie a API depois de alterar o `.env` para
+carregar o novo valor e então execute a ingestão:
 
 ```shell
+docker compose up -d --force-recreate api
 docker compose exec api uv run --no-sync python -m app.ingest
 ```
 
