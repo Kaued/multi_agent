@@ -14,6 +14,6 @@ wheels/
 
 # Local database data
 pgdata/
-vector_db/
+/vector_db/
 
 .env
