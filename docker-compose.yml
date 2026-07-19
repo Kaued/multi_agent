@@ -44,10 +44,8 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       LANGGRAPH_CHECKPOINT_DB_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       QDRANT_URL: http://qdrant:6333
-      LLM_BASE_URL: ${DOCKER_LLM_BASE_URL:-http://host.docker.internal:11434}
-      EMBEDDING_BASE_URL: ${DOCKER_EMBEDDING_BASE_URL:-http://host.docker.internal:11434}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL}
     ports:
       - "${API_PORT:-5000}:5000"
     depends_on:

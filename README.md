@@ -97,7 +97,7 @@ O `.env` é ignorado pelo Git. Nunca adicione chaves reais ou senhas ao
 | Variável | Descrição | Exemplo |
 | --- | --- | --- |
 | `LLM_MODEL_DEFAULT` | Modelo usado quando um agente não possui override | `ollama:qwen3:8b` |
-| `LLM_BASE_URL` | URL do provedor ao executar a API localmente | `http://127.0.0.1:11434` |
+| `LLM_BASE_URL` | URL do provedor de chat, usada localmente e no Docker | `http://192.168.0.2:11434` |
 | `LLM_API_KEY` | Credencial do provedor; para Ollama local pode ser um valor não secreto | `ollama` |
 | `LLM_TEMPERATURE` | Aleatoriedade das respostas | `0.7` |
 | `LLM_CONTEXT_WINDOW` | Total de tokens disponíveis para entrada e resposta | `32768` |
@@ -118,7 +118,7 @@ pares de chamada e resultado das ferramentas.
 | --- | --- | --- |
 | `EMBEDDING_PROVIDER` | Provedor de embeddings: `ollama` ou `openai` | `ollama` |
 | `EMBEDDING_MODEL_DEFAULT` | Modelo usado para vetorização | `qwen3-embedding:4b` |
-| `EMBEDDING_BASE_URL` | URL do Ollama para execução local (ignorada com OpenAI) | `http://127.0.0.1:11434` |
+| `EMBEDDING_BASE_URL` | URL do Ollama para embeddings, usada localmente e no Docker (ignorada com OpenAI) | `http://192.168.0.2:11434` |
 | `OPENAI_API_KEY` | Chave exigida quando o provedor é `openai` | sem valor público |
 | `DATA_SET_PATH` | CSV usado por `app.ingest` | `app/data/python_faq_dataset.csv` |
 | `QDRANT_URL` | URL do Qdrant para execução local | `http://localhost:6333` |
@@ -153,8 +153,6 @@ exemplo na primeira inicialização de um diretório de dados vazio.
 | `API_HOST` | Interface da API em execução local | `127.0.0.1` |
 | `API_PORT` | Porta publicada da API | `5000` |
 | `UI_PORT` | Porta publicada da interface | `4200` |
-| `DOCKER_LLM_BASE_URL` | Ollama visto pelo container da API | `http://host.docker.internal:11434` |
-| `DOCKER_EMBEDDING_BASE_URL` | Embeddings vistos pelo container | `http://host.docker.internal:11434` |
 | `OPENWEATHER_API_KEY` | Chave da API OpenWeather | obrigatória para clima |
 | `TAVILY_API_KEY` | Chave da API Tavily | obrigatória para pesquisa web |
 
@@ -173,10 +171,11 @@ Confirme que o serviço responde antes de iniciar os containers:
 curl http://localhost:11434/api/version
 ```
 
-Para execução local, as variáveis `LLM_BASE_URL` e `EMBEDDING_BASE_URL` usam
-`127.0.0.1`. Dentro do Docker, o Compose as substitui pelas variáveis
-`DOCKER_LLM_BASE_URL` e `DOCKER_EMBEDDING_BASE_URL`, que usam o hostname
-especial `host.docker.internal`.
+As variáveis `LLM_BASE_URL` e `EMBEDDING_BASE_URL` são usadas tanto na execução
+local quanto dentro do Docker. Quando o Ollama estiver no computador host, use
+o IPv4 local da máquina, por exemplo `http://192.168.0.2:11434`; não use
+`localhost` ou `127.0.0.1`, pois esses endereços apontariam para o próprio
+container.
 
 Se a conexão for recusada, confirme que o Ollama está em execução e autorizado
 pelo firewall. Em instalações que aceitam somente loopback, configure o Ollama
@@ -332,7 +331,8 @@ docker compose build api ui
 
 ### API não acessa o Ollama
 
-- Não use `localhost` ou `127.0.0.1` nas variáveis `DOCKER_*`.
+- Não use `localhost` ou `127.0.0.1` em `LLM_BASE_URL` ou
+  `EMBEDDING_BASE_URL` quando a API estiver no Docker e o Ollama no host.
 - Teste `http://localhost:11434/api/version` no host.
 - Confirme os modelos instalados com `ollama list`.
 - Verifique firewall, serviço Ollama e a porta `11434`.
