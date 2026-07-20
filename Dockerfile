@@ -21,4 +21,4 @@ COPY tools ./tools
 
 EXPOSE 5000
 
-CMD ["uv", "run", "--no-sync", "python", "-m", "app.api"]
+CMD ["uv", "run", "--no-sync", "python", "-m", "app.start"]
